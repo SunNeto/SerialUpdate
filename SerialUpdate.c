@@ -8,7 +8,7 @@
     	#include <termios.h> /* POSIX Terminal Control Definitions */
     	#include <unistd.h>  /* UNIX Standard Definitions 	   */ 
     	#include <errno.h>   /* ERROR Number Definitions           */
-
+	#include <math.h>
     	void OpenCom(int fd ,char *com)
     	{
         //	int fd;/*File Descriptor*/

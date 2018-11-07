@@ -8,7 +8,7 @@
     	#include <termios.h> /* POSIX Terminal Control Definitions */
     	#include <unistd.h>  /* UNIX Standard Definitions 	   */ 
     	#include <errno.h>   /* ERROR Number Definitions           */
-
+        
     	void OpenCom(int fd ,char *com)
     	{
         //	int fd;/*File Descriptor*/
@@ -28,7 +28,7 @@
         	else
             	   printf("\n  ttyS0 Opened Successfully ");
 
-	
+        print("Test for Git Commit!");	
 		/*---------- Setting the Attributes of the serial port using termios structure --------- */
 		
 		struct termios SerialPortSettings;	/* Create the structure                          */

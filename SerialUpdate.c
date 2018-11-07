@@ -1,8 +1,3 @@
-        /*====================================================================================================*/
-        /* Serial Port Programming in C (Serial Port Write)                                                   */
-	/* Non Cannonical mode                                                                                */
-        /*====================================================================================================*/
-	
 	/*-------------------------------------------------------------*/
     	/* termios structure -  /usr/include/asm-generic/termbits.h    */ 
 	/* use "man termios" to get more info about  termios structure */

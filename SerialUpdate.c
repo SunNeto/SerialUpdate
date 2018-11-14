@@ -313,20 +313,22 @@ int OpenFirmware(char *PathDir)
     int fd;
     unsigned long ulCRC;
     ssize_t nCodeLength;
+    char *name_start = NULL;
+    char filename[64];
     time_t now;
     struct tm *timenow;
 
     //检查烧写固件是否存在、可读
     if(access(PathDir ,F_OK | R_OK)<0)
     {
-        printf("Cannot Find/read %s:%s\n",PathDir,strerror(errno));
+        printf("  Read File Error 01:Cannot Find/read %s:%s\n",PathDir,strerror(errno));
         return -1;
     }
 
     //打开固件
     if((fd = open(PathDir,O_RDONLY | O_NONBLOCK))<0)
     {
-        printf("Open %s Error:%s\n",PathDir,strerror(errno));
+        printf("  Read File Error 02:Cannot Open %s:%s\n",PathDir,strerror(errno));
         return -2;
     }
 
@@ -335,58 +337,98 @@ int OpenFirmware(char *PathDir)
     if(FirmwareSt.ucData == NULL)
     {
         free(FirmwareSt.ucData);
-        printf("Out of Memory\n");
+        printf("  Read FIle Error 03:Out of Memory\n");
         return -3;
     }
-    int i;
     //读取文件帧头（前19字节）
     if(read(fd,FirmwareSt.ucData,19)==19)
     {
         memcpy(&FirmwareSt,FirmwareSt.ucData,19);
         printf("\n");
-        printf("\n");
         time(&now);
         timenow = localtime(&now);
-        printf("%s",asctime(timenow));
-        printf("文件信息(%s)\n",PathDir);
-        printf("帧头    ：%c%c%c%c\n",FirmwareSt.ucFileID[0],FirmwareSt.ucFileID[1],FirmwareSt.ucFileID[2],FirmwareSt.ucFileID[3]);
-        printf("文件长度：%d Bytes\n",FirmwareSt.uFileLen);
-        printf("加密算法：%d\n",FirmwareSt.ucEncryptMed);
-        printf("设备码  ：%d\n",FirmwareSt.ucProductIndex);
-        printf("索引码  ：%d\n",FirmwareSt.ucDeviceIndex);
-        printf("硬件版本：%d\n",FirmwareSt.usHardVer);
-        printf("软件版本：%d\n",FirmwareSt.usSoftVer);
-        printf("附加码  ：%x\n",FirmwareSt.uExtraCode);
+        printf("File information(%s)\n",PathDir);
+        printf("  %s",asctime(timenow));
+        //检查帧头
+        if(memcmp(FirmwareSt.ucFileID,FILE_ID,4) != 0)
+        {
+            free(FirmwareSt.ucData);
+            printf("  Read File Error 04:Incorrect FileID\n");
+            return -4;
+        }
+        printf("  Company    :StarNeto\n");
+        printf("  File Length:%d Bytes\n",FirmwareSt.uFileLen);
+        //检查设备码
+        if(FirmwareSt.ucProductIndex == 1)
+        {
+            printf("  Product    :Newton-M Serial\n");
+        
+        }//之后有更多设备码可以用else if添加到这里
+        else
+        {
+            free(FirmwareSt.ucData);
+            printf("  Read File Error 05:Incorrect product)\n");
+            return -5;
+        }
+        //检查索引码与文件名是否一致:0x01 - protocol ; 0x02 - Nav;
+        //获取文件名
+        name_start = strrchr(PathDir,'/');
+        if(NULL==name_start)
+            memcpy(filename, PathDir, sizeof(PathDir));
+        else
+            memcpy(filename, name_start+1, sizeof(name_start+1));
+
+        if(FirmwareSt.ucDeviceIndex == 0x01)
+        {
+            if(!memcmp("Protocol",filename,8))
+                printf("  Device     :Protocol Device\n");
+            else
+            {
+                free(FirmwareSt.ucData);
+                printf("  Read File Error 06-01:File Name and Device Index do not Match(Protocol)\n");
+                return -6;
+            }
+        }
+        else if(FirmwareSt.ucDeviceIndex == 0x02)
+        {
+            if(!memcmp("Nav",filename,3))
+                printf("  Device     :Nav Device\n");
+            else
+            {
+                free(FirmwareSt.ucData);
+                printf("  Read File Error 06-02:File Name and Device Index do not Match(Nav)\n");
+                return -6;
+            }
+        }
+        else
+        {
+            free(FirmwareSt.ucData);
+            printf("  Read File Error 07:Read File Error 07:Incorrect DeviceIndex\n");
+            return -7;
+        }
         printf("\n");
     }
     else
     {
         free(FirmwareSt.ucData);
-        printf("Empty File\n");
-        return -4;
+        printf("  Read File Error 08:Empty File\n");
+        return -8;
     }
 
-    //检查帧头
-    if(memcmp(FirmwareSt.ucFileID,FILE_ID,4) != 0)
-    {
-        free(FirmwareSt.ucData);
-        printf("Error FileID\n");
-        return -5;
-    }
 
     //读取文件剩余内容（程序数据+CRC校验）
     nCodeLength = read(fd,FirmwareSt.ucData+19,FILE_MAX_SIZE);
     if(nCodeLength <= 0)
     {
         free(FirmwareSt.ucData);
-        printf("Read File Error:%s\n",strerror(errno));  
-        return -6;
+        printf("  Read File Error 09:File Corrupted:%s\n",strerror(errno));  
+        return -9;
     }
     else if(nCodeLength > FILE_MAX_SIZE -19)//帧头结构19字节
     {
         free(FirmwareSt.ucData);
-        printf("File is too Large\n");
-        return -7;
+        printf("  Read File Error 10:File is too Large\n");
+        return -10;
     }
 
     //从FirmwareSt.ucData最后四字节中取回CRC校验位
@@ -395,17 +437,14 @@ int OpenFirmware(char *PathDir)
     //计算接收数据CRC
     ulCRC = Cal_CRC32(0, FirmwareSt.ucData, nCodeLength+19-4);
     
-    //判断CRC，返回CRC校验错误或文件描述符
+    //判断CRC
     if(FirmwareSt.crc != ulCRC)
     {
-        printf("File CRC Error\n");
-        return -8;
+        printf("  Read File Error 11:CRC Error\n");
+        return -11;
     }
-    else
-    {
-        printf("Read File Success!\n");
-        return fd;
-    }
+    //读取文件成功，返回文件描述符
+    return fd;
 }
 
 void CloseFirmware(int fd)

@@ -11,6 +11,7 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 //mag
 #define FILE_MAX_SIZE      (1024 * 1024 * 2) //根据加密程序设定文件最大buffer
 //yjy
@@ -423,7 +424,7 @@ int main(int argc , char *argv[])
 	int iCommand = 0;
 
     stInformation stinfo;
-	if(argc != 2) 
+	if(argc != 3) 
 	{
         printf("ERROR:Parameter Number incorrectly!\n");
 	    printf("eg. NewtonUpdate <serial port address> <firmware path>\n");

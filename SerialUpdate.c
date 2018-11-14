@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <ctype.h>
 //mag
 #define FILE_MAX_SIZE      (1024 * 1024 * 2) //根据加密程序设定文件最大buffer
 //yjy
@@ -311,7 +312,7 @@ unsigned long Cal_CRC32(unsigned long crc, unsigned char *buf, unsigned long len
 int OpenFirmware(char *PathDir)
 {
     int fd;
-    unsigned long ulCRC;
+    unsigned long ulCRC,i;
     ssize_t nCodeLength;
     char *name_start = NULL;
     char filename[64];
@@ -377,10 +378,13 @@ int OpenFirmware(char *PathDir)
             memcpy(filename, PathDir, sizeof(PathDir));
         else
             memcpy(filename, name_start+1, sizeof(name_start+1));
+        //文件名大小写转换
+        for(i=0;i<sizeof(filename);i++)
+            *(filename+i) = tolower(*(filename+i));
 
         if(FirmwareSt.ucDeviceIndex == 0x01)
         {
-            if(!memcmp("Protocol",filename,8))
+            if(!memcmp("protocol",filename,8))
                 printf("  Device     :Protocol Device\n");
             else
             {
@@ -391,7 +395,7 @@ int OpenFirmware(char *PathDir)
         }
         else if(FirmwareSt.ucDeviceIndex == 0x02)
         {
-            if(!memcmp("Nav",filename,3))
+            if(!memcmp("nav",filename,3))
                 printf("  Device     :Nav Device\n");
             else
             {

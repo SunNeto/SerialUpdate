@@ -13,6 +13,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <dirent.h>
+
 //mag
 #define FILE_MAX_SIZE      (1024 * 1024 * 2) //根据加密程序设定文件最大buffer
 //yjy
@@ -456,6 +458,153 @@ void CloseFirmware(int fd)
     close(fd);
 }
 
+void FindFirmware(char *FolderDir)
+{
+    DIR *dir;
+    struct dirent *ptr;
+    char tempName[512],str[256],ProName[20][256],NavName[20][256];
+    unsigned short int i;
+    unsigned char ProFileNum=0,NavFileNum=0,status=0;
+    //检查文件夹是否正确
+    if ((dir=opendir(FolderDir)) == NULL)
+    {
+        perror("Open dir error...");
+        exit(1);
+    }
+    printf("\n");
+    printf("\n");
+    //遍历文件夹，寻找开头为protocol和nav的文件并列出
+    while ((ptr=readdir(dir)) != NULL)
+    {
+        if(ptr->d_type == 8)    //file type
+        {
+            memcpy(tempName,ptr->d_name,strlen(ptr->d_name));
+            for(i=0;i<sizeof(tempName);i++)//字母转小写
+                *(tempName+i) = tolower(*(tempName+i));
+            if(!memcmp(tempName,"protocol",8))
+            {
+                printf("  No.%d Pro File in Folder:   %s\n",ProFileNum+1,ptr->d_name);
+                strcpy(ProName[ProFileNum],ptr->d_name);
+                ProFileNum++;
+            }
+            else if(!memcmp(tempName,"nav",3))
+            {
+                printf("  No.%d Nav File in Folder:   %s\n",NavFileNum+1,ptr->d_name);
+                strcpy(NavName[NavFileNum],ptr->d_name);
+                NavFileNum++;
+            }
+        }
+        else
+            continue;
+    }
+    memset(tempName,0,sizeof(tempName));
+
+    //判断读到多少Protocol开头的文件，如果只有一个直接打开，如果有多个请求输入文件名选择
+    if(ProFileNum==1)
+    {
+        strcpy(tempName,FolderDir);//赋文件夹地址至临时字符串
+        strcat(tempName,ProName[0]);//文件名追加至临时字符串后成为文件绝对地址
+        if(OpenFirmware(tempName)<0)
+            exit(1);//如果获取文件内容错误，OpenFirmware函数会返回相应错误，此处退出即可
+    }
+    else if(ProFileNum>1)
+    {
+        printf("Select Pro File to Update(Finish by 'Enter'):");
+        if((scanf("%[^\n]",str))<0)
+            printf("Input Error\n");
+        if(str != NULL)
+        {
+            for(i=0;i<20;i++)
+            {
+                if(!strcmp(str,ProName[i]))
+                {
+                    status=1;
+                    strcpy(tempName,FolderDir);
+                    strcat(tempName,str);
+                    if(OpenFirmware(tempName)<0)
+                        exit(1);
+                }
+            }
+            //判断输入的字符是否是正确的文件名
+            if(status==1)
+                status=0;
+            else
+            {
+                printf("Incorrect Protocol File Name\n");
+                exit(1);
+            }
+        }
+        else
+        {
+            printf("No Protocol File Name Input\n");
+            exit(1);
+        }
+    }
+    else
+    {
+        printf("No Protocol File in Folder\n");
+        exit(0);
+    }
+    memset(str,0,sizeof(str));
+    memset(tempName,0,sizeof(tempName));//清空字符串
+    getchar();//再读一个字节，防止上次输入的回车等对下次输入造成影响
+    fflush(stdin);//清空输入流
+    
+    //判断Nav文件个数，响应方式与Pro相同
+    if(NavFileNum==1)
+    {
+        strcpy(tempName,FolderDir);
+        strcat(tempName,NavName[0]);
+        if(OpenFirmware(tempName)<0)
+            exit(1);
+    }
+    else if(NavFileNum>1)
+    {
+        printf("Select Nav File to Update(Finish by 'Enter'):");
+        if((scanf("%[^\n]",str))<0)
+            printf("Input Error\n");
+        if(str != NULL)
+        {
+            for(i=0;i<20;i++)
+            {
+                if(!strcmp(str,NavName[i]))
+                {
+                    status=1;
+                    strcpy(tempName,FolderDir);
+                    strcat(tempName,str);
+                    if(OpenFirmware(tempName)<0)
+                        exit(1);
+                }
+            }
+            //判断输入的字符是否是正确的文件名
+            if(status==1)
+                status=0;
+            else
+            {
+                printf("Incorrect Nav File Name\n");
+                exit(1);
+            }
+        }
+        else
+        {
+            printf("No Nav File Name Input\n");
+            exit(1);
+        }
+    }
+    else
+    {
+        printf("No Nav File in Folder\n");
+        exit(0);
+    }
+    memset(str,0,sizeof(str));
+    memset(tempName,0,sizeof(tempName));//清空字符串
+    getchar();//再读一个字节，防止上次输入的回车等对下次输入造成影响
+    fflush(stdin);//清空输入流
+    //printf("TEST!\n");
+    //关闭文件夹
+    closedir(dir);
+}
+
 int main(int argc , char *argv[])
 {
 	int fdSerial,fdFirmware;
@@ -477,8 +626,7 @@ int main(int argc , char *argv[])
   	fdSerial = OpenCom(argv[1]);
 
     //根据传入参数打开导航、协议固件，并根据返回值判断是否成功
-    fdFirmware = OpenFirmware(argv[2]);
-
+    FindFirmware(argv[2]);
   	while(1)
   	{
   	    iReadBytes = read(fdSerial,&cReadBuff[0],60); // Read the data 
